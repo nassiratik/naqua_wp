@@ -1,0 +1,11 @@
+MANIFEST.in
+README.rst
+setup.py
+nwp_controller/__init__.py
+nwp_controller/naquactl.py
+nwp_controller.egg-info/PKG-INFO
+nwp_controller.egg-info/SOURCES.txt
+nwp_controller.egg-info/dependency_links.txt
+nwp_controller.egg-info/not-zip-safe
+nwp_controller.egg-info/requires.txt
+nwp_controller.egg-info/top_level.txt

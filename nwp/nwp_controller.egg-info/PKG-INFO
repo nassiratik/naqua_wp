@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: nwp-controller
+Version: 1.1
+Summary: Raspberry Pi application to manage reading and transmitting water parameters
+Home-page: http://gitlab.naqua.com.sa/nassiratik/nwp_controller.git
+Author: Nassir Atik
+Author-email: nassiratik@naqua.com.sa
+License: IT
+Description: Initially, this project covers Fish PGO. Raspberry Pi controller unit is installed for each PGO tank
+Platform: UNKNOWN
+Classifier: development status :: 1 - Beta
+Classifier: License :: Naqua :: ITD
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Topic :: Naqua :: Fish Production
