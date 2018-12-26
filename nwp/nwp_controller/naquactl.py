@@ -62,6 +62,7 @@ localpath='/home/pi/PGO/v1_1/'
 # Define LCD column and row size for 16x2 LCD.
 lcd_columns = 16
 lcd_rows    = 2
+lcd_DO = lcd_temp = "0.0"
 caprobes=object()
 pincontrol = object()
 lcd1=object()
@@ -71,6 +72,18 @@ interactive_flag = False
 intmode_button = 0.0
 # Temp variables
 device_file = ""
+ValidReadings={
+  "OxygenMin":3.0,
+  "OxygenMax":25.0,
+  "SalinityMin":30.0,
+  "SalinityMax":50.0,
+  "WaterMin":10,
+  "WaterMax":350,
+  "TempMin":15.0,
+  "TempMax":50.0,
+  "pHMin":0.0,
+  "pHMax":15.0
+  }
 
 
 def lcd_init():
@@ -357,7 +370,7 @@ class motor:
         
         self.m_down = 5
         self.m_up=5
-        self.m_settle = 10
+        self.m_settle = int(config['SETTLE'])
         self.m_runsecs=runsecs
         self.m_enable = True if (motorenable == 'yes') else False        
 
@@ -512,7 +525,7 @@ class motor:
 #                self.probe_posn = "jam"
 #                return "jam"
 #        else:
-#        time.sleep(self.m_settle)
+        time.sleep(self.m_settle)
         if runsecs==0:
             self.probe_posn = "down"
         else:
@@ -812,7 +825,7 @@ def upload_data(dDO, dTemp, pincontrol):
         pincontrol.flash('upload')
         o2_flag=False
         for sensor in sensors:
-            if  sensor['Error'] == 0:   #temp sensor, detected, no read error
+            if  ((sensor['Error'] == 0) and not (sensor['Reading'] in ('0.0','99.999','88.888'))):   #temp sensor, detected, no read error
                 urlParams = 'Mode=data'
                 urlParams = '&ddate=' + dateWrite + '&dtime='+ timeWrite
                 urlParams += '&stype=' + sensor['SensorType']
@@ -848,11 +861,13 @@ def upload_data(dDO, dTemp, pincontrol):
                         pincontrol.set_link(1) #turn LED on to indicate disconnected state
                 if sensor['SensorType'] == '20':
                     #print("checking DO level...")
-                    if float(sensor['Reading']) < float(config['MIN_OXYGEN']):
-                        o2_sid = sensor['SensorID']
-                        o2_reading=sensor['Reading']
-                        o2_flag=True
-
+                    try:
+                      if float(sensor['Reading']) < float(config['MIN_OXYGEN']):
+                          o2_sid = sensor['SensorID']
+                          o2_reading=sensor['Reading']
+                          o2_flag=True
+                    except:
+                      pass
 
         if o2_flag:
             if pincontrol.get_oxygenstate()=="Off":
@@ -866,19 +881,64 @@ def upload_data(dDO, dTemp, pincontrol):
 
 	return commStatus
 
+def readWL(arduino,sensor):
+    WL_Reading = '0.0'
+    conv_factor = 1
+    try:
+      arduino.write('2' if sensor=='sonar' else '3') #read water level detector
+      dataexists=True
+      while dataexists:
+        txt1=arduino.readline()
+        if (len(txt1) > 3) : ardtext = txt1
+        if (len(txt1) < 5) : dataexists = False
+      if sensor == 'sonar':
+        if (len(ardtext)>5):
+          if (string.split(ardtext,",")[0] == 'WL'):
+            WL_Reading = string.split(ardtext,",")[2]
+
+          ht=int(config['SONARHT'])
+          WL_Reading  = string.split(WL_Reading,".")[0]
+          rd = int(WL_Reading) #this is to truncate the decimal part whch contains \r\n
+          if not (ValidReadings["WaterMin"] <= rd <= ValidReadings["WaterMax"]): rd=0
+          if (rd > 0): rd = ht - rd
+        else:
+          rd = 888
+          
+      elif sensor == 'pressure':
+
+        if (len(ardtext)>5):
+          if (string.split(ardtext,",")[0] == 'WP'):
+            WL_Reading = string.split(ardtext,",")[2]
+          rd = int(string.split(WL_Reading,".")[0]) #this is to truncate the decimal part whch contains \r\n
+          if (rd > 0): rd = rd*conv_factor
+          print("Pressure reading.."+ WL_Reading)
+        else:
+          rd = 888
+
+      else:
+        rd = 999
+      if rd == 888:
+        return 'NoData'
+      elif rd == 999:
+        return 'sensor!'
+      else:
+        return  str(rd) 
+    except:
+      return  'Error!'
+
 		
 def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
-    global offlineCtr, internetOnline, sensors
+    global offlineCtr, internetOnline, sensors, T_Compensation, S_Compensation, lcd_DO, lcd_temp
     lcd_temp = lcd_DO ='0.0'
     lcd_EC=lcd_pH=WL_Reading=WP_Reading='0.0'
+    EC_Has_Changed = False
+    Temp_Has_Changed = False
     conv_factor=1 #convert water pressure to depth
     dline=''
 #clear previous readings, reset error flags
     for sensor in sensors:
         sensor['Reading'] = 'err'
 	
-#    dline = device.query("R")
-#    dDO=dline.strip()[-5:]
     lcd_string("Reading...",LCD_LINE_1)
     lcd_string("",LCD_LINE_2)
     probe_result = probes.lower_probes()
@@ -897,10 +957,18 @@ def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
             for sensor in sensors:
                 if (sensor['SensorType'] in ('10','90') and len(sensor['File']) > 2):
                     try:
-                        sensor['Reading'] = read_temp(sensor['File'])
+                        tr = read_temp(sensor['File'])
+                        if not (ValidReadings["TempMin"] <= float(tr) <= ValidReadings["TempMax"]): tr='0.0'
+                        sensor['Reading'] = tr
                         sensor['Error'] = 0
                         if sensor['SensorType'] == '10':
-                            lcd_temp = sensor['Reading']
+                            lcd_temp = tr
+                            if (float(tr) > 0): #check if temp is reasonable, ie not a misread
+                                Temp_Has_Changed = False
+                                if abs(float(tr) - T_Compensation) >=1 : 
+                                    T_Compensation=float(tr) 
+                                    Temp_Has_Changed = True
+                            #print("Temp Compensation Change is " + "True " if Temp_Has_Changed else "False ") 
                         pincontrol.flash('goodread')
                     except:
                         sensor['Reading'] = '99.999'
@@ -924,70 +992,63 @@ def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
                             pincontrol.flash('badread')
                             
                         else:
+                            if Temp_Has_Changed:
+                                T_Compensation=float(lcd_temp) 
+                                try:
+                                    str_cmd='T,' + str(T_Compensation)
+                                    dline = device.query('T,' + str(T_Compensation))
+                                    time.sleep(0.3)
+                                    str_resp=device.query('T,?')
+                                    print("Sensor Temp Comp has been set:" + dline + " ; " + str_cmd + " ; " + str_resp )
+                                except:
+                                    pass
+                            if sensor['SensorType'] == '20': #salinity compensation applies only to DO probe
+                                if EC_Has_Changed:
+                                    try:
+                                        dline = device.query('S,' + str(S_Compensation)+',ppt')
+                                        time.sleep(0.3)
+                                        print("DO Salinity Comp has been set")
+                                    except:
+                                        pass
                             dline = device.query('R')
                             ofst=(len(dline) - 11)*(-1)
-                            sensor['Reading']=dline.strip()[ofst:]
-        #                    sensor['Reading']=dline.strip()[-5:]
+                            tr=dline.strip()[ofst:]
+#                            sensor['Reading']=dline.strip()[ofst:]
                             if sensor['SensorType'] == '20':
-                                lcd_DO = sensor['Reading']
+                                if not (ValidReadings["OxygenMin"] <= float(tr) <= ValidReadings["OxygenMax"]): tr='0.0'
+                                sensor['Reading'] = lcd_DO = tr
                             if sensor['SensorType'] =='30':
-                                lcd_pH = sensor['Reading']
+                                if not (ValidReadings["pHMin"] <= float(tr) <= ValidReadings["pHMax"]): tr='0.0'
+                                lcd_pH = sensor['Reading'] = tr
                             if sensor['SensorType'] == '40':
-                                lcd_EC = sensor['Reading']
+                                if not (ValidReadings["SalinityMin"] <= float(tr) <= ValidReadings["SalinityMax"]): tr='0.0'
+                                lcd_EC = sensor['Reading'] =tr
+                                EC_Has_Changed = False
+                                if abs(float(tr) - S_Compensation) >=1 : 
+                                    EC_Has_Changed = True
+                                    S_Compensation=float(tr) 
+
                             sensor['Error'] = 0
                             pincontrol.flash('goodread')
                     except:
                         sensor['Reading'] = '88.888'
                         sensor['Error'] += 1
                 elif (sensor['SensorType'] == '50'): #water level using sonar
-                    ardtext=""
-                    sonar=0
-                    WL_Reading="0"
                     lcd_string("read analog",LCD_LINE_2)
-
-                    try:
-                        arduino.write('2') #read water level detector
-                        dataexists=True
-                        while dataexists:
-                                txt1=arduino.readline()
-                                
-                                if (len(txt1) > 3) : ardtext = txt1
-                                if (len(txt1) < 5) : dataexists = False
-                        if (len(ardtext)>5):
-                                if (string.split(ardtext,",")[0] == 'WL'):
-                                        sonar = True if (string.split(ardtext,",")[1] == 'YES') else False
-                                        WL_Reading = string.split(ardtext,",")[2]
-                        ht=int(config['SONARHT'])
-                        WL_Reading  = string.split(WL_Reading,".")[0]
-                        rd = int(WL_Reading) #this is to truncate the decimal part whch contains \r\n
-                        
-                        if (rd > 0): rd = ht - rd
-                        
-                        sensor['Reading'] = str(rd)
+                    WL_Reading=readWL(arduino,"sonar")
+                    if not (WL_Reading =='Error'):
+                        sensor['Reading'] = WL_Reading
                         pincontrol.flash('goodread')
-                    except:
+                    else:
                         sensor['Reading'] = '999'
                         sensor['Error'] += 1
                 elif (sensor['SensorType'] == '55'): #water level using pressure sensor
-                    ardtext=""
-                    WP_Reading="0"
-                    try:
-                        arduino.write('3') #read pressure sensor
-                        dataexists=True
-                        while dataexists:
-                                txt1=arduino.readline()
-                                
-                                if (len(txt1) > 3) : ardtext = txt1
-                                if (len(txt1) < 5) : dataexists = False
-                        if (len(ardtext)>5):
-                                if (string.split(ardtext,",")[0] == 'WP'):
-                                        WP_Reading = string.split(ardtext,",")[2]
-                        rd = int(string.split(WP_Reading,".")[0]) #this is to truncate the decimal part whch contains \r\n
-                        if (rd > 0): rd = rd*conv_factor
-                        
-                        sensor['Reading'] = str(rd)
+                    lcd_string("read analog",LCD_LINE_2)
+                    WP_Reading = readWL(arduino,"pressure")
+                    if not (WP_Reading =='Error'):
+                        sensor['Reading'] = WP_Reading
                         pincontrol.flash('goodread')
-                    except:
+                    else:
                         sensor['Reading'] = '999'
                         sensor['Error'] += 1
                    
@@ -996,8 +1057,6 @@ def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
                     sensor['Reading'] = '99.888'
                     sensor['Error'] += 1
             #end of for loop
-            probe_result = probes.raise_probes()
-            if DEBUGMODE: print('probe position after reading : ' + probes.getProbePosition())
 
     else:   #probes have jammed
         lcd_string("Error....", LCD_LINE_1)
@@ -1005,8 +1064,8 @@ def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
         print('gantry jam detected, cannot continue')
         pincontrol.set_alarm(1)
                 
-    lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1,LCD_NOBL)
-    lcd_string("Temp :   " + lcd_temp, LCD_LINE_2,LCD_NOBL)
+    lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1)
+    lcd_string("Temp :   " + lcd_temp, LCD_LINE_2)
     if DEBUGMODE:
             print("DO : " + lcd_DO + "; pH : "+ lcd_pH + "; EC : " + lcd_EC + "; temp degC: " + lcd_temp)
             print( "wtr lvl: " + WL_Reading + ", wtr lvl(P): " + WP_Reading )
@@ -1025,12 +1084,23 @@ def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
                 offlineCtr = 0
                 internetOnline = True
         log_errors(pincontrol)
+    probe_result = probes.raise_probes()
+    if DEBUGMODE: print('probe position after reading : ' + probes.getProbePosition())
+    lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1,LCD_NOBL)
+    lcd_string("Temp :   " + lcd_temp, LCD_LINE_2,LCD_NOBL)
 
 def int_callback(channel):
         global intmode_button
+
         if GPIO.input(channel): #interactive req button has been pressed
+                lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1)
+                lcd_string("Temp :   " + lcd_temp, LCD_LINE_2)
+                print("IMode pressed")
                 intmode_button =time.time()
         else: #button has been released. now check if it has been pressed for 3 secs
+                print("IMode released")
+                lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1,LCD_NOBL)
+                lcd_string("Temp :   " + lcd_temp, LCD_LINE_2,LCD_NOBL)
                 time_rlsd = time.time()
                 time_diff = time_rlsd - intmode_button
                 if (time_diff > 3 and time_diff<10):
@@ -1052,23 +1122,26 @@ def interactive_mode():
             intTime=time.time() #if user is idle for more than 10 seconds exit interactive mode
             while True:
                 if GPIO.input(23):
-                    while GPIO.input(23):
+                    pbstate=1
+                    while pbstate:
                         print("probes up requested")
                         lcd_string("boom up",LCD_LINE_2)
                         intTime=time.time() 
                         probes.raise_probes(1)
+                        print("raising probes 1 sec")
                         pbstate = GPIO.input(23)
                         if pbstate==False :
                             print("Probes up button released")
                             break
 #                    if not(probes.getProbePosition=="down"): probes.halt_probes()
                 elif GPIO.input(24):
-                    
-                    while True:
+                    pbstate=1
+                    while pbstate:
                         print("probes down requested")
                         lcd_string("boom down",LCD_LINE_2)
                         intTime=time.time()
                         probes.lower_probes(1)
+                        print("Lowering probes 1 sec")
                         pbstate = GPIO.input(24)
                         if pbstate==False :
                             print("Probes down button released")
@@ -1084,6 +1157,8 @@ def interactive_mode():
                     interactive_flag=False
                     time.sleep(0.5)
                     probes.raise_probes()
+                    lcd_string("Oxygen : " + lcd_DO, LCD_LINE_1,LCD_NOBL)
+                    lcd_string("Temp :   " + lcd_temp, LCD_LINE_2,LCD_NOBL)
                     break
                    
                 
@@ -1092,7 +1167,7 @@ def interactive_mode():
             pincontrol.flash("IModeError")
             time.sleep(0.5)
 def main():
-        global DEBUGMODE, probes, pincontrol, enable_interactive, bus, LCD_ATTACHED
+        global DEBUGMODE, probes, pincontrol, enable_interactive, bus, LCD_ATTACHED, T_Compensation, S_Compensation
         debg="NO"
         try:
                 script, debg = argv
@@ -1154,197 +1229,227 @@ def main():
         time.sleep(3)
 #	print(">> Atlas Scientific sample code")
 	if DEBUGMODE:
-                print(">> Any commands entered are passed to the board via I2C except:")
-                print(">> Pin feature,on/off to control GPIO for features link,operation,alarm,oxygen eg Pin,set,alarm,on; Pin,check,oxygen")
-                print(">>   List_addr lists the available I2C addresses.")
-                print(">>   Address,xx changes the I2C address the Raspberry Pi communicates with.")
-                print(">>   Poll,xx.x command continuously polls the board every xx.x seconds")
-                print(" where xx.x is longer than the %0.2f second timeout." % AtlasI2C.long_timeout)
-                print(">> Pressing ctrl-c will stop the polling")
-                # initLCD()
+            print(">> Any commands entered are passed to the board via I2C except:")
+            print(">> Pin feature,on/off to control GPIO for features link,operation,alarm,oxygen eg Pin,set,alarm,on; Pin,check,oxygen")
+            print(">>   List_addr lists the available I2C addresses.")
+            print(">>   Address,xx changes the I2C address the Raspberry Pi communicates with.")
+            print(">>   Poll,xx.x command continuously polls the board every xx.x seconds")
+            print(" where xx.x is longer than the %0.2f second timeout." % AtlasI2C.long_timeout)
+            print(">> Pressing ctrl-c will stop the polling")
+
+        T_Compensation=float(config['TCOMP'])
+        S_Compensation=float(config['SCOMP'])
 	
-	if DEBUGMODE:
-		while True:
-			input = raw_input("Enter command: ")
+        if DEBUGMODE:
+          while True:
+            input = raw_input("Enter command: ")
+            if input.upper().startswith("LIST_ADDR"):
+              devices = device.list_i2c_devices()
+              for i in range(len (devices)):
+                print(devices[i])
 
-                        if input.upper().startswith("LIST_ADDR"):
-				devices = device.list_i2c_devices()
-				for i in range(len (devices)):
-					print(devices[i])
+              # address command lets you change which address the Raspberry Pi will poll
+            elif input.upper().startswith("ADDRESS"):
+              addr = int(string.split(input, ',')[1])
+              device.set_i2c_address(addr)
+              print("I2C address set to " + str(addr))
 
-			# address command lets you change which address the Raspberry Pi will poll
-			elif input.upper().startswith("ADDRESS"):
-				addr = int(string.split(input, ',')[1])
-				device.set_i2c_address(addr)
-				print("I2C address set to " + str(addr))
+            # continuous polling command automatically polls the board
+            elif input.upper().startswith("POLL"):
+              delaytime = float(string.split(input, ',')[1])
 
-			# continuous polling command automatically polls the board
-			elif input.upper().startswith("POLL"):
-				delaytime = float(string.split(input, ',')[1])
-
-				# check for polling time being too short, change it to the minimum timeout if too short
-				if delaytime < AtlasI2C.long_timeout:
-                                    print("Polling time is shorter than timeout, setting polling time to %0.2f" % AtlasI2C.long_timeout)
-                                    delaytime = AtlasI2C.long_timeout
-
-				# get the information of the board you're polling
-				try:
-                                    info = string.split(device.query("I"), ",")[1]
-                                except:
-                                    info = "??"
-                                print("Polling %s sensor every %0.2f seconds, press ctrl-c to stop polling" % (info, delaytime))
-                                log_status("Begin polling sensors in DEBUG")
-                                probes.resetProbePosition()
-				try:
-					while True:
-						pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino)
-                                                time.sleep(int(config["POLLINTERVAL"]))
-				except KeyboardInterrupt: 		# catches the ctrl-c command, which breaks the loop above
-                                        log_status("Polling interrupted through Ctr-C")
-                                        print("Continuous polling stopped")
-                                        if LCD_ATTACHED:
-                                            lcd_string("stopped...",LCD_LINE_1)
-                                            lcd_string("Clearing...",LCD_LINE_2)
-                                            time.sleep(1.0)
-                                            lcd_string("",LCD_LINE_1,LCD_NOBL)
-                                            lcd_string("",LCD_LINE_2,LCD_NOBL)
-
-                        elif input.upper().startswith("PB"): #test push buttons
-                            but1 = GPIO.input(18)
-                            but2 = GPIO.input(23)
-                            but3 = GPIO.input(24)
-                            str1 = ": on," if but1==1 else ": off,"
-                            str1 += ": on," if but2==1 else ": off,"
-                            str1 += ": on," if but3==1 else ": off,"
-                            str1 = "Buttuns state " + str1
-                            print("Entering push-button testing modes.")
-                            print("This allows testing of buttons on GPIO18, 23, and 24.")
-                            print("Press Ctrl+C to exit this mode")
-                            
-                            print(str1)
-                            
-                            try:
-                                while True:
-                                    but_read = GPIO.input(18)                                    
-                                    if (not(but1 == but_read)):
-                                        str1 = ": on," if but_read else ": off,"
-                                        str1 = "Button 1 state changed to "  +str1
-                                        print(str1)
-                                        but1=but_read
-                                    but_read = GPIO.input(23)                                    
-                                    if (not(but2 == but_read)):
-                                        str1 = ": on," if but_read else ": off,"
-                                        str1 = "Button 2 state changed to "  +str1
-                                        print(str1)
-                                        but2 = but_read
-                                    but_read = GPIO.input(24)                                    
-                                    if (not(but3 == but_read)):
-                                        str1 = ": on," if but_read==1 else ": off,"
-                                        str1 = "Button 3 state changed to "  +str1
-                                        print(str1)
-                                        but3 = but_read
-                                    time.sleep(0.1)
-                            except KeyboardInterrupt:
-                                print("Button Testing ended")
-                            
-
-
-
-                        elif input.upper().startswith("PIN"):
-                                pincmd = string.split(input,',')
-                                if pincmd[1].upper() == 'SET':
-                                    pinstate=1 if pincmd[3] == 'on' else 0
-                                    if pincmd[2].upper() == 'LINK':
-                                        pincontrol.set_link(pinstate)
-                                    elif pincmd[2].upper() == 'OPERATION':
-                                        pincontrol.set_op(pinstate)
-                                    elif pincmd[2].upper() == 'ALARM':
-                                        pincontrol.set_alarm(pinstate)
-                                    elif pincmd[2].upper() == 'OXYGEN':
-                                        pincontrol.flip_oxygen(pinstate)
-                                else:
-                                    print('Data Link state is ' + pincontrol.get_link())
-                                    print('Operation state is ' + pincontrol.get_op())
-                                    print('Alarm state is ' + pincontrol.get_alarm())
-                                    print('Oxygen Supply state is ' + pincontrol.get_oxygenstate())
-
-                        elif input.upper().startswith("MOTOR"):
-                                pincmd = string.split(input,',')
-                                if pincmd[1].upper() == 'RUN':
-                                    runsecs=int(pincmd[3])
-                                    if pincmd[2].upper() == 'UP':
-                                        probes.raise_probes(runsecs)
-                                    elif pincmd[2].upper() == 'DOWN':
-                                        probes.lower_probes(runsecs)
-                                    else:
-                                        print('probe position is : ' + probes.getProbePosition())
-                                else:
-                                    print('probe position is : ' + probes.getProbePosition())
-                        elif input.upper().startswith('MX'): #short command MX for motor Control
-                                pincmd = string.split(input,',')
-                                runsecs=int(pincmd[1])
-                                if pincmd[0].upper()=='MXUP':
-                                        print(probes.raise_probes(runsecs))
-                                elif pincmd[0].upper()=='MXDN':
-                                        print(probes.lower_probes(runsecs))
-                                else:
-                                        print('Cannot process request ' + input.upper() + ' , probe position is : ' + probes.getProbePosition())
-
-
-
-
-			# if not a special keyword, pass commands straight to board
-
-			else:
-				if len(input) == 0:
-					print("Please input valid command.")
-				else:
-					try:
-						print(device.query(input))
-					except IOError:
-						print("Query failed \n - Address may be invalid, use List_addr command to see available addresses")
-	else:
-            for sensor in sensors:
-                if sensor['SensorType'] == '20':
-                    device.set_i2c_address(int(sensor['Addr']))
-                    time.sleep(0.5)
-                    log_status("Current Temp compensation on DO sensor " + sensor['SensorID'] + " : " + device.query("T,?") + "; Salinity Compensation : " + device.query("S,?"))
-                    qres = device.query("T," + config['TCOMP'])
-                    qres = device.query("S," + config['SCOMP'] + ",ppt")
-                    log_status("Set Temp compensation on DO sensor " + sensor['SensorID'] + " : " + device.query("T,?") + "; Salinity Compensation : " + device.query("S,?"))
-                if sensor['SensorType'] == '30':
-                    device.set_i2c_address(int(sensor['Addr']))
-                    time.sleep(0.5)
-                    log_status("Current Temp compensation on pH sensor " + sensor['SensorID'] + " : " + device.query("T,?") )
-                    qres = device.query("T," + config['TCOMP'])
-                    log_status("Set Temp compensation on pH sensor " + sensor['SensorID']  + " : " + device.query("T,?"))
-                    
-                if sensor['SensorType'] == '40':
-                    device.set_i2c_address(int(sensor['Addr']))
-                    time.sleep(0.5)
-                    log_status("Current Temp compensation on EC sensor " + sensor['SensorID'] + " : " + device.query("T,?") )
-                    qres = device.query("T," + config['TCOMP'])
-                    log_status("Set Temp compensation on EC sensor " + sensor['SensorID']  + " : " + device.query("T,?"))
-                    
-            
-            log_status("Begin polling sensors in production mode")
-            probes.resetProbePosition()
-            timeInterval = int(config["POLLINTERVAL"])
-            try:
+              # check for polling time being too short, change it to the minimum timeout if too short
+              if (delaytime < AtlasI2C.long_timeout):
+                print("Polling time is shorter than timeout, setting polling time to %0.2f" % AtlasI2C.long_timeout)
+                delaytime = AtlasI2C.long_timeout
+              # get the information of the board you're polling
+              try:
+                info = string.split(device.query("I"), ",")[1]
+              except:
+                  info = "??"
+              print("Polling %s sensor every %0.2f seconds, press ctrl-c to stop polling" % (info, delaytime))
+              log_status("Begin polling sensors in DEBUG")
+              probes.resetProbePosition()
+              try:
                 while True:
-                        if (not interactive_flag):
-                            enable_interactive=False
-                            pollDevice(device, None, int(config["POLLINTERVAL"]),pincontrol, probes, arduino)
-                            enable_interactive=True
-                            print("you may enter interactive now...")
-                            time.sleep(timeInterval)
-                        else:
-#                            print("Cannot start polling ")
-                            time.sleep(1)
+                  pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino)
+                  time.sleep(int(delaytime))
+              except KeyboardInterrupt: 		# catches the ctrl-c command, which breaks the loop above
+                log_status("Polling interrupted through Ctr-C")
+                print("Continuous polling stopped")
+                if LCD_ATTACHED:
+                    lcd_string("stopped...",LCD_LINE_1)
+                    lcd_string("Clearing...",LCD_LINE_2)
+                    time.sleep(1.0)
+                    lcd_string("",LCD_LINE_1,LCD_NOBL)
+                    lcd_string("",LCD_LINE_2,LCD_NOBL)
+            elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
+              try:
+                while True:
+                  print(device.query('r'))
+                  time.sleep(3.0)
+              except KeyboardInterrupt:
+                print("polling stopped....")
+              except IOError:
+                print("Query failed \n - Address may be invalid, use List_addr command to see available addresses")
+              
 
-            except KeyboardInterrupt: 		# catches the ctrl-c command, which breaks the loop above
-                log_status("Polling interrupted, system shutting down")
-                print("interrupted")                    		
+            elif input.upper().startswith("PB"): #test push buttons
+                but1 = GPIO.input(18)
+                but2 = GPIO.input(23)
+                but3 = GPIO.input(24)
+                str1 = ": on," if but1==1 else ": off,"
+                str1 += ": on," if but2==1 else ": off,"
+                str1 += ": on," if but3==1 else ": off,"
+                str1 = "Buttuns state " + str1
+                print("Entering push-button testing modes.")
+                print("This allows testing of buttons on GPIO18, 23, and 24.")
+                print("Press Ctrl+C to exit this mode")
+                
+                print(str1)
+                
+                try:
+                    while True:
+                        but_read = GPIO.input(18)                                    
+                        if (not(but1 == but_read)):
+                            str1 = ": on," if but_read else ": off,"
+                            str1 = "Button 1 state changed to "  +str1
+                            print(str1)
+                            but1=but_read
+                        but_read = GPIO.input(23)                                    
+                        if (not(but2 == but_read)):
+                            str1 = ": on," if but_read else ": off,"
+                            str1 = "Button 2 state changed to "  +str1
+                            print(str1)
+                            but2 = but_read
+                        but_read = GPIO.input(24)                                    
+                        if (not(but3 == but_read)):
+                            str1 = ": on," if but_read==1 else ": off,"
+                            str1 = "Button 3 state changed to "  +str1
+                            print(str1)
+                            but3 = but_read
+                        time.sleep(0.1)
+                except KeyboardInterrupt:
+                    print("Button Testing ended")
+                            
+
+
+
+            elif input.upper().startswith("PIN"):
+              pincmd = string.split(input,',')
+              if pincmd[1].upper() == 'SET':
+                pinstate=1 if pincmd[3] == 'on' else 0
+                if pincmd[2].upper() == 'LINK':
+                    pincontrol.set_link(pinstate)
+                elif pincmd[2].upper() == 'OPERATION':
+                    pincontrol.set_op(pinstate)
+                elif pincmd[2].upper() == 'ALARM':
+                    pincontrol.set_alarm(pinstate)
+                elif pincmd[2].upper() == 'OXYGEN':
+                    pincontrol.flip_oxygen(pinstate)
+              else:
+                print('Data Link state is ' + pincontrol.get_link())
+                print('Operation state is ' + pincontrol.get_op())
+                print('Alarm state is ' + pincontrol.get_alarm())
+                print('Oxygen Supply state is ' + pincontrol.get_oxygenstate())
+
+            elif input.upper().startswith("MOTOR"):
+              pincmd = string.split(input,',')
+              if pincmd[1].upper() == 'RUN':
+                runsecs=int(pincmd[3])
+                if pincmd[2].upper() == 'UP':
+                    probes.raise_probes(runsecs)
+                elif pincmd[2].upper() == 'DOWN':
+                    probes.lower_probes(runsecs)
+                else:
+                    print('probe position is : ' + probes.getProbePosition())
+              else:
+                  print('probe position is : ' + probes.getProbePosition())
+
+            elif input.upper().startswith('MX'): #short command MX for motor Control
+              pincmd = string.split(input,',')
+              runsecs=int(pincmd[1])
+              if pincmd[0].upper()=='MXUP':
+                print(probes.raise_probes(runsecs))
+              elif pincmd[0].upper()=='MXDN':
+                print(probes.lower_probes(runsecs))
+              else:
+                print('Cannot process request ' + input.upper() + ' , probe position is : ' + probes.getProbePosition())
+
+            # if not a special keyword, pass commands straight to board
+            elif input.upper().startswith('WL'): #get ultrasonic or pressure readings
+              pincmd = string.split(input,',')
+              print("Water Level sensor reading : " + readWL(arduino, pincmd[1].lower()))
+
+            else:
+              if len(input) == 0:
+                print("Please input valid command.")
+              else:
+                try:
+                  print(device.query(input))
+                except IOError:
+                  print("Query failed \n - Address may be invalid, use List_addr command to see available addresses")
+        else:
+          for sensor in sensors:
+              if sensor['SensorType'] == '20': #DO sensor
+                  device.set_i2c_address(int(sensor['Addr']))
+                  time.sleep(0.5)
+                  qres = device.query("O,%,0") #set DO sensor saturation option to  off
+                  qres = device.query("O,MG,1") #set DO sensor mg option to  on
+                  log_status("Current Temp comp. on DO sensor " + sensor['SensorID'] + " : " + device.query("T,?") + "; Salinity Compensation : " + device.query("S,?"))
+                  qres = device.query("T," + config['TCOMP'])
+                  qres = device.query("S," + config['SCOMP'] + ",ppt")
+                  log_status("Set Temp comp. on DO sensor " + sensor['SensorID'] + " : " + device.query("T,?") + "; Salinity Compensation : " + device.query("S,?") + "; Output Options : " + device.query("O,?"))
+              if sensor['SensorType'] == '30': #pH sensor
+                  device.set_i2c_address(int(sensor['Addr']))
+                  time.sleep(0.5)
+                  log_status("Current Temp comp. on pH sensor " + sensor['SensorID'] + " : " + device.query("T,?") )
+                  qres = device.query("T," + config['TCOMP'])
+                  log_status("Set Temp comp. on pH sensor " + sensor['SensorID']  + " : " + device.query("T,?"))
+                  
+              if sensor['SensorType'] == '40': #EC 
+                  device.set_i2c_address(int(sensor['Addr']))
+                  time.sleep(0.5)
+                  qres = device.query("O,EC,0") #set EC sensor conductivity option to  off
+                  qres = device.query("O,S,1") #set EC sensor salinity option to  off
+                  log_status("Current Temp comp. on EC sensor " + sensor['SensorID'] + " : " + device.query("T,?") )
+                  qres = device.query("T," + config['TCOMP'])
+                  log_status("Set Temp comp. on EC sensor " + sensor['SensorID']  + " : " + device.query("T,?") + "; Output Options : " + device.query("O,?"))
+                  
+          
+          log_status("Begin polling sensors in production mode")
+          try:
+              device.query("Address,97")
+              time.sleep(0.5)
+              DO_Opt = device.query("O,?")
+              device.query("Address,100")
+              time.sleep(0.5)
+              EC_Opt = device.query("O,?")
+              print("Output Options : DO = " + DO_Opt + "; EC = " + EC_Opt)
+          except:
+              pass
+
+          timeInterval = int(config["POLLINTERVAL"])
+          try:
+              while True:
+                  if (not interactive_flag):
+                      enable_interactive=False
+                      pollDevice(device, None, int(config["POLLINTERVAL"]),pincontrol, probes, arduino)
+                      enable_interactive=True
+                      print("you may enter interactive now...")
+                      time.sleep(timeInterval)
+                  else:
+  #                            print("Cannot start polling ")
+                      time.sleep(1)
+
+          except KeyboardInterrupt: 		# catches the ctrl-c command, which breaks the loop above
+              log_status("Polling interrupted, system shutting down")
+              lcd_string("Shut down...", LCD_LINE_1)
+              lcd_string("", LCD_LINE_2)
+              time.sleep(2)
+              lcd_string("Stopped...", LCD_LINE_1,LCD_NOBL)
+
+              print("interrupted")                    		
 
 if __name__ == '__main__':
     main()
