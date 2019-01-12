@@ -980,7 +980,8 @@ def parse_payload(strpayload):
     # except:
     #     Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
     pl = strpayload.split('|')
-    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(int(strpayload[1]),strpayload[5].split(',')), 'Errors':int(strpayload[6])}
+    
+    payload = {'Controller': int(pl[0]), 'Sensor': int(pl[2]), 'readingTime':pl[3],'Value':perse_reading(int(pl[1]),pl[4].split(',')), 'Errors':int(pl[5])}
 
     return payload
 
