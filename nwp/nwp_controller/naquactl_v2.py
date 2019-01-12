@@ -813,7 +813,6 @@ def upload_offline_data():
         if len(payload) > 10:
             try:
                 response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
-                print(config["SERVERURL"]+'/sensor_reading')
                 if response.status_code == 200:
                     ctr += 1
                     print("Offline ctr = " + str(ctr))
@@ -823,6 +822,8 @@ def upload_offline_data():
             except:
                 offline_file.close()
                 return "FAIL" + str(ctr)
+        else:
+            print("line too short - " + payload )
     offline_file.close()
     offline_file=open(localpath+"OfflineData.txt","w")
     offline_file.truncate()
