@@ -874,7 +874,7 @@ def upload_data(pincontrol):
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
                     print(response)
                     link_flag = response.status_code
-                    if link_flag == 200: #ok
+                    if link_flag == 201: #ok
                         success_ctr += 1
                         if emptyofflineData == False:
                             log_status("Connection is restored, uploading offline data")
@@ -887,7 +887,7 @@ def upload_data(pincontrol):
                 except:
                     print("exception while attempting to upload")
                     link_flag = 999 #website is offline or URL is incorrect
-                if not link_flag == 200:             
+                if not link_flag == 201:             
                     if DEBUGMODE:
                         print("offline, exception " + str(link_flag))
                     log_status("Connection is lost, saving data to local file")
