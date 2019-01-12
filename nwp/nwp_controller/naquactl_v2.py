@@ -1011,6 +1011,8 @@ def perse_reading(sensortype,reading):
         rdg_out["default"] = rdg[Sensor_Options.index('S')] if sensortype == 40 else rdg[Sensor_Options.index('MG')]
     else:
         rdg_out = reading 
+    print(reading)
+    print(rdg_out)
     return rdg_out
 
 def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
