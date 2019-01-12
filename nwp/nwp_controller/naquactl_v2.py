@@ -975,10 +975,10 @@ def parse_payload(strpayload):
     """reformats text into dict of 'reading option':value. Input is separated by ':', with readings as csv. 
     output is dict, with readings as nested dict in case of stype 20 and 40
     """
-    try:
-        Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
-    except:
-        Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
+    # try:
+    #     Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
+    # except:
+    #     Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
     pl = split(strpayload,':')
     payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(strpayload[1],split(strpayload[5]),','), 'Errors':int(strpayload[6])}
 
