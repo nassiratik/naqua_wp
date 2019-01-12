@@ -809,21 +809,20 @@ def upload_offline_data():
     if DEBUGMODE:
         print("uploading offline data")
     offline_file=open(localpath+"OfflineData.txt")
+    print("begin offlinedata upload")
     for payload in offline_file:
-        if len(payload) > 10:
-            try:
-                response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
-                if response.status_code == 200:
-                    ctr += 1
-                    print("Offline ctr = " + str(ctr))
-                else:
-                    offline_file.close()
-                    return "FAIL, response=" + str(response.status_code)
-            except:
+        print("we are in the loop now")
+        try:
+            response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
+            if response.status_code == 201:
+                ctr += 1
+                print("Offline ctr = " + str(ctr))
+            else:
                 offline_file.close()
-                return "FAIL" + str(ctr)
-        else:
-            print("line too short - " + payload )
+                return "FAIL, response=" + str(response.status_code)
+        except:
+            offline_file.close()
+            return "FAIL" + str(ctr)
     offline_file.close()
     offline_file=open(localpath+"OfflineData.txt","w")
     offline_file.truncate()
