@@ -1366,7 +1366,7 @@ def main():
                     tstdata = ['TRANSMIT','150','35000','35','9.1','145','25.2','155']
                 else :
                     tstdata = string.split(input, ',')
-                if
+                
                 for sensor in sensors:
                     if sensor['SensorType'] == 40: # salinity
                         sensor['Value'] = str(tstdata[1]) + ',' + str(tstdata[2]) + ',' + str(tstdata[3])
