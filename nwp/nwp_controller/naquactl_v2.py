@@ -847,7 +847,8 @@ def upload_data(pincontrol):
             'value':sensor['Reading'],
             'Errors': sensor['Error'],
             }
-        if  ((sensor['Error'] == 0) and not data_is_good(sensor['Reading'])):   #temp sensor, detected, no read error
+        print(payload)
+        if  ((sensor['Error'] == 0) and data_is_good(sensor['Reading'])):   #no read error
             if not internetOnline:
                 if DEBUGMODE:
                     print("offline - no connection")
