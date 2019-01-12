@@ -720,12 +720,12 @@ def setOfflineDataFlag():
             print("No Offline Data" if emptyofflineData else "Offline Data Exists")
     return emptyofflineData
 
-def write_offline(payload):
+def write_offline(sensortype, payload):
     #write data to local file
     global emptyofflineData
     if DEBUGMODE:
         print("writing data to local file")
-    strpayload = str(payload['Controller']) + ":" + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
+    strpayload = str(payload['Controller']) + ":" sensortype + ':' + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
     strval = ''
     for x in payload['value']:
         if isinstance(payload['value'],dict):
@@ -889,7 +889,7 @@ def upload_data(pincontrol):
                         print("offline, exception " + str(link_flag))
                     log_status("Connection is lost, saving data to local file")
                     print(payload)
-                    write_offline(payload)
+                    write_offline(sensor['SensorType'],payload)
                     fail_ctr += 1
                     commStatus = 0
                     pincontrol.set_link(1) #turn LED on to indicate disconnected state
@@ -980,7 +980,7 @@ def parse_payload(strpayload):
     except:
         Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
     pl = split(strpayload,':')
-    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[1]), 'readingTime':strpayload[2],'Value':perse_reading(split(strpayload[4]),','), 'Errors':int(strpayload[5])}
+    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(strpayload[1],split(strpayload[5]),','), 'Errors':int(strpayload[6])}
 
     return payload
 
