@@ -978,11 +978,11 @@ def parse_payload(strpayload):
     output is dict, with readings as nested dict in case of stype 20 and 40
     """
     try:
-        Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
+        Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
     except:
         Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
     pl = split(strpayload,':')
-    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[1]), 'readingTime':strpayload[2],'Value':perse_reading(strpayload[4]), 'Errors':int(strpayload[5])}
+    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[1]), 'readingTime':strpayload[2],'Value':perse_reading(split(strpayload[4]),','), 'Errors':int(strpayload[5])}
 
     return payload
 
