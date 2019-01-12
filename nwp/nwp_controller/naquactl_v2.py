@@ -809,9 +809,7 @@ def upload_offline_data():
     if DEBUGMODE:
         print("uploading offline data")
     offline_file=open(localpath+"OfflineData.txt")
-    print("begin offlinedata upload")
     for payload in offline_file:
-            print("we are in the loop now")
 #        try:
             response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
             if response.status_code == 201:
@@ -871,9 +869,7 @@ def upload_data(pincontrol):
                 print("server not accessible")
             else:
                 try:
-                    print("trying go connect...")
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload,timeout=3)
-                    print(response)
                     link_flag = response.status_code
                     if link_flag == 201: #ok
                         success_ctr += 1
@@ -1406,8 +1402,8 @@ def main():
                     elif sensor['SensorType'] == '50': # WL
                         sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[7]])
                 print tstdata
-                print(upload_data(pincontrol))
-
+#                print(upload_data(pincontrol))
+                print(upload_offline_data())
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
               try:
                 while True:
