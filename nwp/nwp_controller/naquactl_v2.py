@@ -991,7 +991,7 @@ def perse_reading(sensortype,reading):
     #reformats csv text into dict of 'reading option':value 
     if sensortype in (20,40):
         try:
-            Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
+            Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
         except:
             Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
         print('sensor_options : ' + ','.join(Sensor_Options))
