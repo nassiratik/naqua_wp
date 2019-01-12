@@ -1398,13 +1398,13 @@ def main():
 
                 for sensor in sensors:
                     if sensor['SensorType'] == '40': # salinity
-                        sensor['Reading'] = perse_reading(int(sensor['SensorID']), [tstdata[1],tstdata[2],tstdata[3]])
+                        sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[1],tstdata[2],tstdata[3]])
                     elif sensor['SensorType'] == '20': # DO
-                        sensor['Reading'] = perse_reading(int(sensor['SensorID']), [tstdata[4],tstdata[5]])
+                        sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[4],tstdata[5]])
                     elif sensor['SensorType'] == '10': # Temp
-                        sensor['Reading'] = perse_reading(int(sensor['SensorID']), [tstdata[6]])
+                        sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[6]])
                     elif sensor['SensorType'] == '50': # WL
-                        sensor['Reading'] = perse_reading(int(sensor['SensorID']), [tstdata[7]])
+                        sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[7]])
                 print tstdata
                 print(upload_data(pincontrol))
 
