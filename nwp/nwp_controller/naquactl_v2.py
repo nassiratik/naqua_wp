@@ -727,9 +727,9 @@ def write_offline(payload):
         print("writing data to local file")
     strpayload = str(payload['Controller']) + ":" + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
     strval = ''
-    for x in payload['Value']:
-        if isinstance(payload['Value'],dict):
-            strval += (str(payload['Value'][x]) + ',')
+    for x in payload['value']:
+        if isinstance(payload['value'],dict):
+            strval += (str(payload['value'][x]) + ',')
         else:
             strval += (str(x) + ',')
     strpayload += (strval + ":" + str(payload['Errors']))
