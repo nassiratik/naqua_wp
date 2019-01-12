@@ -1362,7 +1362,11 @@ def main():
                     lcd_string("",LCD_LINE_1,LCD_NOBL)
                     lcd_string("",LCD_LINE_2,LCD_NOBL)
             elif input.upper().startswith("TRANSMIT"): #Transmit data to server. expects arguments as tds,ec,s,mg,%,T,WL for sensor types 40,20,10,50
-                tstdata = string.split(input, ',')
+                if len(string.split(input, ',')) == 1:  #no data specified, defaults will be used
+                    tstdata = ['TRANSMIT','150','35000','35','9.1','145','25.2','155']
+                else :
+                    tstdata = string.split(input, ',')
+                if
                 for sensor in sensors:
                     if sensor['SensorType'] == 40: # salinity
                         sensor['Value'] = str(tstdata[1]) + ',' + str(tstdata[2]) + ',' + str(tstdata[3])
@@ -1372,7 +1376,7 @@ def main():
                         sensor['Value'] = str(tstdata[6])
                     elif sensor['SensorType'] == 50: # WL
                         sensor['Value'] = str(tstdata[7])
-                upload_data(pincontrol)
+                print(upload_data(pincontrol))
 
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
               try:
