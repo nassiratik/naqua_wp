@@ -812,7 +812,7 @@ def upload_offline_data():
     for payload in offline_file:
         if len(payload) > 10:
             try:
-                response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload))
+                response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
                 print(config["SERVERURL"]+'/sensor_reading')
                 if response.status_code == 200:
                     ctr += 1
@@ -870,7 +870,7 @@ def upload_data(pincontrol):
             else:
                 try:
                     print("trying go connect...")
-                    response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
+                    response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload,timeout=3)
                     print(response)
                     link_flag = response.status_code
                     if link_flag == 201: #ok
@@ -1009,8 +1009,6 @@ def perse_reading(sensortype,reading):
         rdg_out["default"] = rdg[Sensor_Options.index('S')] if sensortype == 40 else rdg[Sensor_Options.index('MG')]
     else:
         rdg_out = reading 
-    print(reading)
-    print(rdg_out)
     return rdg_out
 
 def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
