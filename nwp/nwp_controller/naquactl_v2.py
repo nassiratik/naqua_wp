@@ -1248,7 +1248,7 @@ def set_sensor_options(device,sensor_type):
         pass
 #        print("Sensor Options : for type " + str(sensor_type) + " : " + device.query("o,?"))
 def main():
-    global DEBUGMODE, probes, pincontrol, enable_interactive, bus, LCD_ATTACHED, T_Compensation, S_Compensation
+    global DEBUGMODE, sensors, probes, pincontrol, enable_interactive, bus, LCD_ATTACHED, T_Compensation, S_Compensation
     debg="NO"
     try:
         script, debg = argv
@@ -1361,6 +1361,19 @@ def main():
                     time.sleep(1.0)
                     lcd_string("",LCD_LINE_1,LCD_NOBL)
                     lcd_string("",LCD_LINE_2,LCD_NOBL)
+            elif input.upper().startswith("TRANSMIT"): #Transmit data to server. expects arguments as tds,ec,s,mg,%,T,WL for sensor types 40,20,10,50
+                tstdata = string.split(input, ',')
+                for sensor in sensors:
+                    if sensor['SensorType'] == 40: # salinity
+                        sensor['Value'] = str(tstdata[1]) + ',' + str(tstdata[2]) + ',' + str(tstdata[3])
+                    elif sensor['SensorType'] == 20: # DO
+                        sensor['Value'] = str(tstdata[4]) + ',' + str(tstdata[5])
+                    elif sensor['SensorType'] == 10: # Temp
+                        sensor['Value'] = str(tstdata[6])
+                    elif sensor['SensorType'] == 50: # WL
+                        sensor['Value'] = str(tstdata[7])
+                upload_data(pincontrol)
+
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
               try:
                 while True:
