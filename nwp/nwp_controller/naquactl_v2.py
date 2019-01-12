@@ -995,6 +995,8 @@ def perse_reading(sensortype,reading):
         except:
             Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
         if not (len(Sensor_Options) == len(reading)) :
+            print(Sensor_Options)
+            print(reading)
             i = 0
             rdg=[]
             while i < len(Sensor_Options):
