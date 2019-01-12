@@ -994,7 +994,7 @@ def perse_reading(sensortype,reading):
             Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
         except:
             Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
-
+        print('sensor_options : ' + ','.join(Sensor_Options))
         if not (len(Sensor_Options) == len(reading)) :
             i = 0
             rdg=[]
