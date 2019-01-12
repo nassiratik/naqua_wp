@@ -725,7 +725,7 @@ def write_offline(sensortype, payload):
     global emptyofflineData
     if DEBUGMODE:
         print("writing data to local file")
-    strpayload = str(payload['Controller']) + ":" sensortype + ':' + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
+    strpayload = str(payload['Controller']) + ":" + sensortype + ":" + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
     strval = ''
     for x in payload['value']:
         if isinstance(payload['value'],dict):
