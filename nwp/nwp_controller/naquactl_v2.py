@@ -859,7 +859,6 @@ def upload_data(pincontrol):
             }
 #        payload = parse_payload(config["CONTROLLER"] + ':' + sensor['SensorID'] + ':' + dateWrite + ':' + perse_reading(sensor['SensorID'],sensor['Reading']) + ':' + sensor['Error'] )
 
-        print(payload)
         if  ((sensor['Error'] == 0) and data_is_good(sensor['Reading'])):   #no read error
             if not internetOnline:
                 if DEBUGMODE:
@@ -871,9 +870,9 @@ def upload_data(pincontrol):
             else:
                 try:
                     print("trying go connect...")
+                    print('URL : ' + config["SERVERURL"]+'/sensor_reading')
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
                     print(response)
-                    print(payload)
                     link_flag = response.status_code
                     if link_flag == 200: #ok
                         success_ctr += 1
@@ -994,7 +993,6 @@ def perse_reading(sensortype,reading):
             Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
         except:
             Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
-        print('sensor_options : ' + ','.join(Sensor_Options))
         if not (len(Sensor_Options) == len(reading)) :
             i = 0
             rdg=[]
