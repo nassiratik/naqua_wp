@@ -873,6 +873,7 @@ def upload_data(pincontrol):
                     print("trying go connect...")
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
                     print(response)
+                    print(payload)
                     link_flag = response.status_code
                     if link_flag == 200: #ok
                         success_ctr += 1
@@ -1401,11 +1402,11 @@ def main():
 
                 for sensor in sensors:
                     if sensor['SensorType'] == 40: # salinity
-                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[1],tstdata[2],tstdata[3]])
+                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[1],tstdata[2],tstdata[3]])
                     elif sensor['SensorType'] == 20: # DO
-                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[4],tstdata[5]])
+                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[4],tstdata[5]])
                     elif sensor['SensorType'] == 10: # Temp
-                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[6]])
+                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[6]])
                     elif sensor['SensorType'] == 50: # WL
                         sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[7]])
                 print(upload_data(pincontrol))
