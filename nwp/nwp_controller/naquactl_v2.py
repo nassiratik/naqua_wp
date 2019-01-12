@@ -732,6 +732,7 @@ def write_offline(sensortype, payload):
             strval += (str(payload['value'][x]) + ',')
         else:
             strval += (str(x) + ',')
+    strval = strval[0:len(strval)-1]
     strpayload += (strval + "|" + str(payload['Errors']))
 
     offline_file=open(localpath+"OfflineData.txt",'a')
