@@ -989,26 +989,28 @@ def parse_payload(strpayload):
 
 def perse_reading(sensortype,reading):
     #reformats csv text into dict of 'reading option':value 
-    try:
-        Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
-    except:
-        Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
+    if sensortype in (20,40):
+        try:
+            Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
+        except:
+            Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
 
-    if not (len(Sensor_Options) == len(reading)) :
+        if not (len(Sensor_Options) == len(reading)) :
+            i = 0
+            rdg=[]
+            while i < len(Sensor_Options):
+                rdg.append('bad')
+                i += 1
+        else:
+            rdg = reading
+        rdg_out = {}
         i = 0
-        rdg=[]
         while i < len(Sensor_Options):
-            rdg.append('bad')
+            rdg_out[Sensor_Options[i]] = rdg[i]
             i += 1
+        rdg_out["default"] = rdg[Sensor_Options.index('S')] if sensortype == 40 else rdg[Sensor_Options.index('MG')]
     else:
-        rdg = reading
-    rdg_out = {}
-    i = 0
-    while i < len(Sensor_Options):
-        rdg_out[Sensor_Options[i]] = rdg[i]
-        i += 1
-    rdg_out["default"] = rdg[Sensor_Options.index('S')] if sensortype == 40 else rdg[Sensor_Options.index('MG')]
-
+        rdg_out = reading 
     return rdg_out
 
 def pollDevice(device, lcd1, delaytime, pincontrol, probes, arduino):
@@ -1409,6 +1411,7 @@ def main():
                         sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[6]])
                     elif sensor['SensorType'] == 50: # WL
                         sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[7]])
+                print tstdata
                 print(upload_data(pincontrol))
 
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
