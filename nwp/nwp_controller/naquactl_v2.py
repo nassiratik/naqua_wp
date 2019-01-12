@@ -816,7 +816,7 @@ def upload_offline_data():
                 ctr += 1
                 print("Offline ctr = " + str(ctr))
             else:
-                print("fail after trying, response " + response.status_code)
+                print("fail after trying, response " + str(response.status_code))
                 offline_file.close()
                 return "FAIL, response=" + str(response.status_code)
  #       except:
