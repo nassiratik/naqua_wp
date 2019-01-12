@@ -1366,16 +1366,22 @@ def main():
                     tstdata = ['TRANSMIT','150','35000','35','9.1','145','25.2','155']
                 else :
                     tstdata = string.split(input, ',')
-                
+                tstEC = []
+                tstEC.append(tstdata[1])
+                tstEC.append(tstdata[2])
+                tstEC.append(tstdata[3])
+                tstDO = [tstdata[4],tstdata[5]]
+
+
                 for sensor in sensors:
                     if sensor['SensorType'] == 40: # salinity
-                        sensor['Value'] = str(tstdata[1]) + ',' + str(tstdata[2]) + ',' + str(tstdata[3])
+                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[1],tstdata[2],tstdata[3]])
                     elif sensor['SensorType'] == 20: # DO
-                        sensor['Value'] = str(tstdata[4]) + ',' + str(tstdata[5])
+                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[4],tstdata[5]])
                     elif sensor['SensorType'] == 10: # Temp
-                        sensor['Value'] = str(tstdata[6])
+                        sensor['Value'] = perse_readings(sensor['SensorID'], [tstdata[6]])
                     elif sensor['SensorType'] == 50: # WL
-                        sensor['Value'] = str(tstdata[7])
+                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[7]])
                 print(upload_data(pincontrol))
 
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
