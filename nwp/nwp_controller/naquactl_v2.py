@@ -1402,8 +1402,11 @@ def main():
                     elif sensor['SensorType'] == '50': # WL
                         sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[7]])
                 print tstdata
-#                print(upload_data(pincontrol))
+                print(upload_data(pincontrol))
+
+            elif input.upper().startswith("OFFLINE"): #Transmit offline data to server
                 print(upload_offline_data())
+
             elif input.upper().startswith("CR"): #continuous reading from atlas probe on defined address
               try:
                 while True:
