@@ -725,8 +725,17 @@ def write_offline(payload):
     global emptyofflineData
     if DEBUGMODE:
         print("writing data to local file")
+    strpayload = str(payload['Controller']) + ":" + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
+    strval = ''
+    for x in payload['Value']:
+        if isinstance(payload['Value'],dict):
+            strval += (str(payload['Value'][x]) + ',')
+        else:
+            strval += (str(x) + ',')
+    strpayload += (strval + ":" + str(payload['Errors']))
+
     offline_file=open(localpath+"OfflineData.txt",'a')
-    offline_file.write(payload + '\n')
+    offline_file.write(strpayload + '\n')
     offline_file.close()
     emptyofflineData = False
 
@@ -803,7 +812,8 @@ def upload_offline_data():
     for payload in offline_file:
         if len(payload) > 10:
             try:
-                response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
+                response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload))
+                print(config["SERVERURL"]+'/sensor_reading')
                 if response.status_code == 200:
                     ctr += 1
                     print("Offline ctr = " + str(ctr))
@@ -847,6 +857,8 @@ def upload_data(pincontrol):
             'value':sensor['Reading'],
             'Errors': sensor['Error'],
             }
+#        payload = parse_payload(config["CONTROLLER"] + ':' + sensor['SensorID'] + ':' + dateWrite + ':' + perse_reading(sensor['SensorID'],sensor['Reading']) + ':' + sensor['Error'] )
+
         print(payload)
         if  ((sensor['Error'] == 0) and data_is_good(sensor['Reading'])):   #no read error
             if not internetOnline:
@@ -960,6 +972,19 @@ def readWL(arduino,sensor):
         return  str(rd) 
     except:
       return  'Error!'
+
+def parse_payload(strpayload):
+    """reformats text into dict of 'reading option':value. Input is separated by ':', with readings as csv. 
+    output is dict, with readings as nested dict in case of stype 20 and 40
+    """
+    try:
+        Sensor_Options=config['ECSENSOROPTIONS'].split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].split(',')
+    except:
+        Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
+    pl = split(strpayload,':')
+    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[1]), 'readingTime':strpayload[2],'Value':perse_reading(strpayload[4]), 'Errors':int(strpayload[5])}
+
+    return payload
 
 def perse_reading(sensortype,reading):
     #reformats csv text into dict of 'reading option':value 
