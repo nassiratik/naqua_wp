@@ -725,14 +725,14 @@ def write_offline(sensortype, payload):
     global emptyofflineData
     if DEBUGMODE:
         print("writing data to local file")
-    strpayload = str(payload['Controller']) + ":" + sensortype + ":" + str(payload['Sensor']) + ":" + payload['ReadingTime'] + ":"  
+    strpayload = str(payload['Controller']) + "|" + sensortype + "|" + str(payload['Sensor']) + "|" + payload['ReadingTime'] + "|"  
     strval = ''
     for x in payload['value']:
         if isinstance(payload['value'],dict):
             strval += (str(payload['value'][x]) + ',')
         else:
             strval += (str(x) + ',')
-    strpayload += (strval + ":" + str(payload['Errors']))
+    strpayload += (strval + "|" + str(payload['Errors']))
 
     offline_file=open(localpath+"OfflineData.txt",'a')
     offline_file.write(strpayload + '\n')
@@ -979,7 +979,7 @@ def parse_payload(strpayload):
     #     Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
     # except:
     #     Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
-    pl = strpayload.split(':')
+    pl = strpayload.split('|')
     payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(int(strpayload[1]),strpayload[5].split(',')), 'Errors':int(strpayload[6])}
 
     return payload
