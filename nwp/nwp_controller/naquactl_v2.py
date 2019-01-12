@@ -813,7 +813,7 @@ def upload_offline_data():
         print("uploading offline data")
     offline_file=open(localpath+"OfflineData.txt")
     for payload in offline_file:
-#        try:
+        try:
             response = requests.post(config["SERVERURL"]+'/sensor_reading',json=parse_payload(payload),timeout=3)
             if response.status_code == 201:
                 ctr += 1
@@ -822,14 +822,14 @@ def upload_offline_data():
                 print("fail after trying, response " + str(response.status_code))
                 offline_file.close()
                 return "FAIL, response=" + str(response.status_code)
- #       except:
-            # print("fail with exception")
-            # offline_file.close()
-            # return "FAIL" + str(ctr)
+        except:
+            print("fail with exception")
+            offline_file.close()
+            return "FAIL" + str(ctr)
     offline_file.close()
-    # offline_file=open(localpath+"OfflineData.txt","w")
-    # offline_file.truncate()
-    # offline_file.close()
+    offline_file=open(localpath+"OfflineData.txt","w")
+    offline_file.truncate()
+    offline_file.close()
     emptyofflineData = True
     return "PASS"+str(ctr) 
 
