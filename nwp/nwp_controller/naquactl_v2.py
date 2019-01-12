@@ -1397,22 +1397,16 @@ def main():
                     tstdata = ['TRANSMIT','150','35000','35','9.1','145','25.2','155']
                 else :
                     tstdata = string.split(input, ',')
-                tstEC = []
-                tstEC.append(tstdata[1])
-                tstEC.append(tstdata[2])
-                tstEC.append(tstdata[3])
-                tstDO = [tstdata[4],tstdata[5]]
-
 
                 for sensor in sensors:
-                    if sensor['SensorType'] == 40: # salinity
-                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[1],tstdata[2],tstdata[3]])
-                    elif sensor['SensorType'] == 20: # DO
-                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[4],tstdata[5]])
-                    elif sensor['SensorType'] == 10: # Temp
-                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[6]])
-                    elif sensor['SensorType'] == 50: # WL
-                        sensor['Reading'] = perse_readings(sensor['SensorID'], [tstdata[7]])
+                    if sensor['SensorType'] == '40': # salinity
+                        sensor['Reading'] = perse_readings(int(sensor['SensorID']), [tstdata[1],tstdata[2],tstdata[3]])
+                    elif sensor['SensorType'] == '20': # DO
+                        sensor['Reading'] = perse_readings(int(sensor['SensorID']), [tstdata[4],tstdata[5]])
+                    elif sensor['SensorType'] == '10': # Temp
+                        sensor['Reading'] = perse_readings(int(sensor['SensorID']), [tstdata[6]])
+                    elif sensor['SensorType'] == '50': # WL
+                        sensor['Reading'] = perse_readings(int(sensor['SensorID']), [tstdata[7]])
                 print tstdata
                 print(upload_data(pincontrol))
 
