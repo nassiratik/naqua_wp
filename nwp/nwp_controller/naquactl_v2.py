@@ -870,7 +870,6 @@ def upload_data(pincontrol):
             else:
                 try:
                     print("trying go connect...")
-                    print('URL : ' + config["SERVERURL"]+'/sensor_reading')
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload)
                     print(response)
                     link_flag = response.status_code
@@ -891,6 +890,7 @@ def upload_data(pincontrol):
                     if DEBUGMODE:
                         print("offline, exception " + str(link_flag))
                     log_status("Connection is lost, saving data to local file")
+                    print(payload)
                     write_offline(payload)
                     fail_ctr += 1
                     commStatus = 0
