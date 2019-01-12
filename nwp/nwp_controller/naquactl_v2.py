@@ -979,8 +979,8 @@ def parse_payload(strpayload):
     #     Sensor_Options=config['ECSENSOROPTIONS'].upper().split(',') if sensortype == 40 else config['DOSENSOROPTIONS'].upper().split(',')
     # except:
     #     Sensor_Options=['TDS','EC','S'] if sensortype == 40 else ['MG','PS']
-    pl = split(strpayload,':')
-    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(strpayload[1],split(strpayload[5]),','), 'Errors':int(strpayload[6])}
+    pl = strpayload.split(':')
+    payload = {'Controller': int(strpayload[0]), 'Sensor': int(strpayload[2]), 'readingTime':strpayload[3],'Value':perse_reading(int(strpayload[1]),strpayload[5].split(',')), 'Errors':int(strpayload[6])}
 
     return payload
 
