@@ -729,9 +729,11 @@ def write_offline(sensortype, payload):
     strval = ''
     for x in payload['value']:
         if isinstance(payload['value'],dict):
-            strval += (str(payload['value'][x]) + ',')
+            if not (str(x) == 'default'):
+                strval += (str(payload['value'][x]) + ',')
         else:
-            strval += (str(x) + ',')
+            if not (str(x) == 'default'):
+                strval += (str(x) + ',')
     strval = strval[0:len(strval)-1]
     strpayload += (strval + "|" + str(payload['Errors']))
 
