@@ -985,7 +985,6 @@ def parse_payload(strpayload):
     pl = strpayload.split('|')
     
     payload = {'Controller': int(pl[0]), 'Sensor': int(pl[2]), 'ReadingTime':pl[3],'value':perse_reading(int(pl[1]),pl[4].split(',')), 'Errors':int(pl[5])}
-    print(payload)
 
     return payload
 
@@ -1408,7 +1407,6 @@ def main():
                         sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[6]])
                     elif sensor['SensorType'] == '50': # WL
                         sensor['Reading'] = perse_reading(int(sensor['SensorType']), [tstdata[7]])
-                print tstdata
                 print(upload_data(pincontrol))
 
             elif input.upper().startswith("OFFLINE"): #Transmit offline data to server
