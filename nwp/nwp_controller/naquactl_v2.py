@@ -800,7 +800,7 @@ def upload_error_msg(sensor):
     
 
     try:
-        response = requests.post(config["SERVERURL"]+'/sensor_error',json=payload)
+#        response = requests.post(config["SERVERURL"]+'/sensor_error',json=payload)
         return "OK" if  response.status_code == 200 else 'FAIL, Response = ' + str(response.status_code)
     except:
         return "FAIL, Not able to connect"
@@ -872,6 +872,7 @@ def upload_data(pincontrol):
                 print("server not accessible")
             else:
                 try:
+                    print("Server URL : " + config["SERVERURL"])
                     response = requests.post(config["SERVERURL"]+'/sensor_reading',json=payload,timeout=3)
                     link_flag = response.status_code
                     if link_flag == 201: #ok
